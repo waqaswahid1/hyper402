@@ -1,5 +1,5 @@
 /**
- * HyperPay Types - Based on x402 protocol
+ * Hyper402 Types - Based on x402 protocol
  */
 
 export interface PaymentPayload {

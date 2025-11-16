@@ -1,11 +1,11 @@
-# @hyperpay/facilitator
+# @hyper402/facilitator
 
-x402 payment facilitator implementation for HyperEVM testnet, created as part of HyperPay project for the HyperEVM Hackathon at Devconnect Buenos Aires (Nov'25).
+x402 payment facilitator implementation for HyperEVM testnet, created as part of Hyper402 project for the HyperEVM Hackathon at Devconnect Buenos Aires (Nov'25).
 
 ## installation
 
 ```bash
-npm install @hyperpay/facilitator
+npm install @hyper402/facilitator
 ```
 
 ## usage
@@ -27,7 +27,7 @@ endpoints:
 
 ```javascript
 import { paymentMiddleware } from "x402-express";
-import { facilitator } from "@hyperpay/facilitator";
+import { facilitator } from "@hyper402/facilitator";
 
 app.use(paymentMiddleware(
   receiverWallet,

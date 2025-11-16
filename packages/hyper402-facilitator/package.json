@@ -1,5 +1,5 @@
 {
-  "name": "@hyperpay/facilitator",
+  "name": "@hyper402/facilitator",
   "version": "1.0.0",
   "description": "x402 facilitator implementation for HyperEVM using CDP Server Wallets",
   "type": "module",

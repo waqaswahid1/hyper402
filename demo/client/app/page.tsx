@@ -68,6 +68,7 @@ export default function Home() {
   const [otp, setOtp] = useState("");
   const [flowId, setFlowId] = useState("");
   const [authType, setAuthType] = useState<"email" | "sms">("email");
+  const [copied, setCopied] = useState(false);
 
   const address = currentUser?.evmAccounts?.[0];
 
@@ -180,7 +181,7 @@ export default function Home() {
   };
 
   // call the x402-enabled API endpoint
-  const handleCallApi = async () => {
+  const handleCallApi = async (endpoint: string) => {
     if (!address || !currentUser) return;
     
     setLoading(true);
@@ -207,7 +208,7 @@ export default function Home() {
       const fetchWithPayment = wrapFetchWithPayment(fetch, walletClient);
       
       // make the paid request
-      const response = await fetchWithPayment(`${API_URL}/motivate`, {
+      const response = await fetchWithPayment(`${API_URL}${endpoint}`, {
         method: "GET",
       });
       
@@ -237,7 +238,7 @@ export default function Home() {
   return (
     <div className="container">
       <div className="header">
-        <h1>HyperPay demo</h1>
+        <h1>Hyper402 demo</h1>
         <p>showcasing the first x402 facilitator for HyperEVM</p>
       </div>
 
@@ -373,8 +374,28 @@ export default function Home() {
         ) : (
           <div className="wallet-info">
             <p>connected:</p>
-            <div className="address">{address}</div>
-            <p style={{ marginTop: "16px" }}>USDC balance:</p>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "16px" }}>
+              <div className="address" style={{ flex: 1 }}>{address}</div>
+              <button
+                className="button button-secondary"
+                onClick={() => {
+                  navigator.clipboard.writeText(address || "");
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                style={{ 
+                  padding: "8px 16px", 
+                  margin: 0, 
+                  width: "auto", 
+                  fontSize: "14px",
+                  background: copied ? "#d4edda" : "#f0f0f0",
+                  color: copied ? "#155724" : "#333"
+                }}
+              >
+                {copied ? "copied ✓" : "copy"}
+              </button>
+            </div>
+            <p>USDC balance:</p>
             <div className="balance">{balance} USDC</div>
             <button 
               className="button button-secondary" 
@@ -392,38 +413,6 @@ export default function Home() {
           <div className="action-section">
             <h2 style={{ marginBottom: "16px", fontSize: "20px" }}>get testnet USDC</h2>
             
-            <div style={{ marginBottom: "12px", padding: "12px", background: "#f8f9fa", borderRadius: "8px" }}>
-              <p style={{ fontSize: "14px", color: "#666", marginBottom: "8px" }}>
-                your wallet address:
-              </p>
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <input
-                  type="text"
-                  value={address}
-                  readOnly
-                  style={{ 
-                    flex: 1,
-                    padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "1px solid #ddd",
-                    fontFamily: "monospace",
-                    fontSize: "12px",
-                    background: "white"
-                  }}
-                />
-                <button
-                  className="button button-secondary"
-                  onClick={() => {
-                    navigator.clipboard.writeText(address || "");
-                    alert("address copied!");
-                  }}
-                  style={{ padding: "8px 16px", margin: 0, width: "auto" }}
-                >
-                  copy
-                </button>
-              </div>
-            </div>
-
             <button
               className="button button-primary"
               onClick={() => window.open("https://faucet.circle.com/", "_blank")}
@@ -432,9 +421,9 @@ export default function Home() {
               open Circle faucet →
             </button>
             <p style={{ fontSize: "13px", color: "#666", lineHeight: "1.5" }}>
-              1. click above to open Circle's faucet<br />
-              2. select "HyperEVM Testnet"<br />
-              3. paste your address (copy button above)<br />
+              1. copy your address from section 1 above<br />
+              2. click button to open Circle's faucet<br />
+              3. select "HyperEVM Testnet" and paste address<br />
               4. claim USDC & return here
             </p>
           </div>
@@ -443,14 +432,22 @@ export default function Home() {
             <h2 style={{ marginBottom: "16px", fontSize: "20px" }}>call x402-enabled API</h2>
             <button
               className="button button-primary"
-              onClick={handleCallApi}
+              onClick={() => handleCallApi('/motivate')}
               disabled={loading || parseFloat(balance) < 0.01}
+              style={{ marginBottom: "12px" }}
             >
-              {loading ? "processing..." : "Get Motivational Quote (0.01 USDC)"}
+              {loading ? "processing..." : "motivational quote (0.01 USDC)"}
+            </button>
+            <button
+              className="button button-primary"
+              onClick={() => handleCallApi('/fortune')}
+              disabled={loading || parseFloat(balance) < 0.05}
+            >
+              {loading ? "processing..." : "fortune telling (0.05 USDC)"}
             </button>
             {parseFloat(balance) < 0.01 && (
               <div className="info-box">
-                you need at least 0.01 USDC to call the API - use the faucet above
+                you need at least 0.01 USDC to call these APIs - use the faucet above
               </div>
             )}
           </div>
@@ -494,16 +491,18 @@ export default function Home() {
       <div className="steps" style={{ marginTop: "32px" }}>
         <h3>about this demo:</h3>
         <p style={{ fontSize: "14px", lineHeight: "1.6", color: "#666" }}>
-          this demo showcases <strong>HyperPay</strong> - the first x402 payment facilitator for HyperEVM
+          this demo showcases <strong>Hyper402</strong> - the first x402 payment facilitator for HyperEVM
         </p>
-        <ul style={{ fontSize: "14px", lineHeight: "1.8", color: "#666", marginTop: "12px", listStyle: "none", paddingLeft: "0" }}>
+        <ul style={{ fontSize: "14px", lineHeight: "1.8", color: "#666", marginTop: "12px", paddingLeft: "20px" }}>
           <li>sign in to get a CDP Embedded Wallet</li>
           <li>get testnet USDC from Circle's faucet</li>
           <li>call x402-enabled APIs with automatic payment on HyperEVM</li>
-          <li>no gas fees - HyperPay facilitator sponsors gas in HYPE</li>
+          <li>no gas fees - Hyper402 facilitator sponsors gas in HYPE</li>
         </ul>
-        <p style={{ fontSize: "13px", marginTop: "16px", color: "#888" }}>
-          built for the HyperEVM Hackathon • <a href="https://github.com/jnix2007/hyperpay" target="_blank" rel="noopener noreferrer" style={{ color: "#0052ff" }}>GitHub →</a>
+        <p style={{ fontSize: "13px", marginTop: "16px", color: "#888", textAlign: "center" }}>
+          built for the HyperEVM Hackathon at Devconnect Buenos Aires, Nov'25
+          <br />
+          <a href="https://github.com/jnix2007/hyper402" target="_blank" rel="noopener noreferrer" style={{ color: "#0052ff", marginTop: "4px", display: "inline-block" }}>GitHub →</a>
         </p>
       </div>
     </div>

@@ -1,5 +1,5 @@
 /**
- * HyperPay Facilitator Server
+ * Hyper402 Facilitator Server
  * Provides /verify and /settle endpoints for x402 payments on HyperEVM testnet
  */
 
@@ -25,7 +25,7 @@ app.use(express.json());
 const cdp = new CdpClient();
 
 // Facilitator wallet address (will be created on first run if not exists)
-let facilitatorAddress: string;
+let facilitatorAddress: `0x${string}`;
 
 // Initialize facilitator wallet
 async function initializeFacilitator() {
@@ -33,7 +33,7 @@ async function initializeFacilitator() {
     // Try to get or create a facilitator account
     // In production, you'd store the address and reuse it
     const account = await cdp.evm.getOrCreateAccount({
-      name: "hyperpay-facilitator",
+      name: "hyper402-facilitator",
     });
     
     facilitatorAddress = account.address;
@@ -48,7 +48,7 @@ async function initializeFacilitator() {
 // Root endpoint - info about the facilitator
 app.get("/", (req, res) => {
   res.json({
-    name: "HyperPay Facilitator",
+    name: "Hyper402 Facilitator",
     version: "1.0.0",
     description: "x402 payment facilitator for HyperEVM testnet",
     network: {
@@ -67,7 +67,7 @@ app.get("/", (req, res) => {
       "GET /supported": "Get supported schemes and networks",
     },
     facilitatorWallet: facilitatorAddress,
-    github: "https://github.com/jnix2007/hyperpay",
+    github: "https://github.com/jnix2007/hyper402",
   });
 });
 
@@ -76,7 +76,7 @@ app.get("/health", (req, res) => {
   res.json({ 
     status: "ok", 
     facilitatorWallet: facilitatorAddress,
-    message: "HyperPay facilitator is running" 
+    message: "Hyper402 facilitator is running" 
   });
 });
 
@@ -104,18 +104,18 @@ app.post("/verify", async (req, res) => {
       });
     }
 
-    console.log(`[HyperPay] Verifying payment from ${(request.paymentPayload.payload as any).authorization.from}`);
+    console.log(`[Hyper402] Verifying payment from ${(request.paymentPayload.payload as any).authorization.from}`);
 
     const result = await verify(
       request.paymentPayload,
       request.paymentRequirements,
     );
 
-    console.log(`[HyperPay] Verification result: ${result.isValid ? "VALID ✅" : `INVALID ❌ (${result.invalidReason})`}`);
+    console.log(`[Hyper402] Verification result: ${result.isValid ? "VALID ✅" : `INVALID ❌ (${result.invalidReason})`}`);
 
     res.json(result);
   } catch (error) {
-    console.error("[HyperPay] Verify error:", error);
+    console.error("[Hyper402] Verify error:", error);
     res.status(500).json({
       isValid: false,
       invalidReason: "unexpected_verify_error",
@@ -135,7 +135,7 @@ app.post("/settle", async (req, res) => {
       });
     }
 
-    console.log(`[HyperPay] Settling payment from ${(request.paymentPayload.payload as any).authorization.from}`);
+    console.log(`[Hyper402] Settling payment from ${(request.paymentPayload.payload as any).authorization.from}`);
 
     if (!facilitatorAddress) {
       throw new Error("Facilitator wallet not initialized");
@@ -148,14 +148,14 @@ app.post("/settle", async (req, res) => {
       request.paymentRequirements,
     );
 
-    console.log(`[HyperPay] Settlement result: ${result.success ? "SUCCESS ✅" : `FAILED ❌ (${result.errorReason})`}`);
+    console.log(`[Hyper402] Settlement result: ${result.success ? "SUCCESS ✅" : `FAILED ❌ (${result.errorReason})`}`);
     if (result.transaction) {
-      console.log(`[HyperPay] Transaction: https://testnet.purrsec.com/tx/${result.transaction}`);
+      console.log(`[Hyper402] Transaction: https://testnet.purrsec.com/tx/${result.transaction}`);
     }
 
     res.json(result);
   } catch (error) {
-    console.error("[HyperPay] Settle error:", error);
+    console.error("[Hyper402] Settle error:", error);
     res.status(500).json({
       success: false,
       errorReason: "settlement_failed",
@@ -171,7 +171,7 @@ async function start() {
     await initializeFacilitator();
     
     app.listen(PORT, () => {
-      console.log(`\n🚀 HyperPay Facilitator running on http://localhost:${PORT}`);
+      console.log(`\n🚀 Hyper402 Facilitator running on http://localhost:${PORT}`);
       console.log(`\n📋 Endpoints:`);
       console.log(`   • GET  /              - Facilitator info`);
       console.log(`   • GET  /health        - Health check`);

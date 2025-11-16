@@ -1,14 +1,14 @@
-# HyperPay - x402 Facilitator for HyperEVM
+# Hyper402 - x402 Facilitator for HyperEVM
 
-![HyperPay](./hyperpay.png)
+![Hyper402](./hyper402.png)
 
-**HyperPay is the first x402 payment facilitator for HyperEVM**, enabling API services and content providers to monetize their offerings and receive onchain payments on HyperEVM
+**Hyper402 is the first x402 payment facilitator for HyperEVM**, enabling API services and content providers to monetize their offerings and receive onchain payments on HyperEVM
 
 **built for the HyperEVM Hackathon hosted by Looping Collective & StakingRewards at Devconnect Buenos Aires, November 2025**
 
-## what is HyperPay?
+## what is Hyper402?
 
-HyperPay is a self-hosted x402 facilitator that brings the x402 payment protocol to HyperEVM, starting on testnet but easily configurable for mainnet
+Hyper402 is a self-hosted x402 facilitator that brings the x402 payment protocol to HyperEVM, starting on testnet but easily configurable for mainnet
 
 it enables API providers to accept USDC payments on HyperEVM using the same dead-simple integration other facilitators provide on chains like Solana and Base
 
@@ -27,16 +27,16 @@ my core contribution here is the x402 Facilitator for HyperEVM
 **along with the facilitator, I've included an end-to-end, full-stack demo showcasing HyperEVM x402 payments in action**:
 
 - web app lets the user sign in, get a CDP Embedded Wallet, and faucet USDC on HyperEVM testnet
-- the user can one-click call a simple x402-enabled API running in the backend, which is x402-enabled using HyperPay's facilitator on HyperEVM
+- the user can one-click call a simple x402-enabled API running in the backend, which uses Hyper402's facilitator on HyperEVM
 - the API will respond with 402 payment required, directing the user to pay $0.01 USDC on HyperEVM testnet to access its services
 - the client wallet signs and retries using the X-PAYMENT header the x402 protocol expects
-- the API server calls HyperPay's facilitator to verify and settle payment on HyperEVM
+- the API server calls Hyper402's facilitator to verify and settle payment on HyperEVM
 - with payment complete, the API provides the requested service/content to the user
 
 
 ```
 ┌──────────────┐         ┌──────────────┐         ┌──────────────┐
-│    client    │         │   demo API   │         │   HyperPay   │
+│    client    │         │   demo API   │         │   Hyper402   │
 │              │◄───────►│              │◄───────►│ (facilitator)│
 └──────────────┘         └──────────────┘         └──────────────┘
                                                           │
@@ -56,9 +56,9 @@ my core contribution here is the x402 Facilitator for HyperEVM
 ## project structure
 
 ```
-hyperpay/
+hyper402/
 ├── packages/
-│   └── hyperpay-facilitator/    # facilitator implementation
+│   └── hyper402-facilitator/    # facilitator implementation
 │       ├── src/
 │       │   ├── server.ts        # express server with /verify & /settle
 │       │   ├── verify.ts        # payment verification logic
@@ -68,7 +68,7 @@ hyperpay/
 │       │   └── index.ts         # exports facilitator instance
 │       └── package.json
 └── demo/
-    ├── server/                   # demo API using HyperPay
+    ├── server/                   # demo API using Hyper402
     │   ├── index.js             # express API with x402 middleware
     │   └── package.json
     └── client/                   # web app
@@ -90,10 +90,10 @@ hyperpay/
 npm install
 ```
 
-### 2. configure HyperPay facilitator
+### 2. configure Hyper402 facilitator
 
 ```bash
-cd packages/hyperpay-facilitator
+cd packages/hyper402-facilitator
 cp .env.example .env
 ```
 
@@ -104,7 +104,15 @@ CDP_API_KEY_SECRET=your-api-key-secret
 PORT=3002
 ```
 
-### 3. start HyperPay facilitator
+### 3. build the facilitator
+
+```bash
+cd packages/hyper402-facilitator
+npm run build
+cd ../..
+```
+
+### 4. start Hyper402 facilitator
 
 ```bash
 npm run dev:facilitator
@@ -112,14 +120,14 @@ npm run dev:facilitator
 
 you should see:
 ```
-🚀 HyperPay Facilitator running on http://localhost:3002
 ✅ Facilitator wallet initialized: 0x...
 ⚠️  Make sure this wallet has HYPE for gas!
+🚀 Hyper402 Facilitator running on http://localhost:3002
 ```
 
 **important:** fund the facilitator wallet with testnet HYPE for gas!
 
-### 4. configure demo API
+### 5. configure demo API
 
 ```bash
 cd demo/server
@@ -129,16 +137,16 @@ cp .env.example .env
 Edit `.env`:
 ```env
 RECEIVER_WALLET=0xYourWalletAddressHere
-HYPERPAY_FACILITATOR_URL=http://localhost:3002
+HYPER402_FACILITATOR_URL=http://localhost:3002
 ```
 
-### 5. start demo API server
+### 6. start demo API server
 
 ```bash
 npm run dev:server
 ```
 
-### 6. configure client
+### 7. configure client
 
 ```bash
 cd demo/client
@@ -151,23 +159,25 @@ NEXT_PUBLIC_CDP_PROJECT_ID=your-project-id
 NEXT_PUBLIC_API_URL=http://localhost:3003
 ```
 
-### 7. start client
+### 8. start client
 
 ```bash
 npm run dev:client
 ```
 
-visit http://localhost:3004
+visit http://localhost:3004 - you can sign in and experience the end-to-end flow using Hyper402
 
 ## how it works
 
 ### for API providers
 
-3 lines of code to accept payments on HyperEVM using HyperPay's facilitator:
+as the hackathon project P0, integration requires custom middleware (~20 lines) since the standard x402 middleware package doesn't support custom chains yet - see `demo/server/index.js` for the full implementation
+
+**future state** (after publishing Hyper402 custom middleware; see roadmap below):
 
 ```javascript
-import { paymentMiddleware } from "x402-express";
-import { facilitator } from "@hyperpay/facilitator";
+import { paymentMiddleware } from "@hyper402/x402-express";
+import { facilitator } from "@hyper402/facilitator";
 
 app.use(paymentMiddleware(
   "0xYourWallet",
@@ -203,15 +213,15 @@ app.use(paymentMiddleware(
 2. server returns 402 with payment requirements
 3. client creates EIP-3009 authorization (signed off-chain)
 4. client retries with X-PAYMENT header
-5. server calls HyperPay `/verify`
-6. HyperPay verifies signature & checks balance
-7. server calls HyperPay `/settle`
-8. HyperPay calls `transferWithAuthorization` via CDP Server Wallet
+5. server calls Hyper402 `/verify`
+6. Hyper402 verifies signature & checks balance
+7. server calls Hyper402 `/settle`
+8. Hyper402 calls `transferWithAuthorization` via CDP Server Wallet
 9. CDP Server Wallet pays gas (HYPE)
 10. USDC transfers from client to API provider
 11. server returns protected content
 
-### why HyperPay matters
+### why Hyper402 matters
 
 **for the x402 ecosystem:**
 - first facilitator beyond Base & Solana
@@ -243,7 +253,7 @@ environment variables:
 
 environment variables:
 - `RECEIVER_WALLET`
-- `HYPERPAY_FACILITATOR_URL`
+- `HYPER402_FACILITATOR_URL`
 
 ### client
 
@@ -255,18 +265,18 @@ don't forget to allowlist your domain in CDP Portal under Embedded Wallets! The 
 
 ## roadmap
 
-I mostly did this on the long flight from Seattle to Buenos Aires, so the scope is limited. There are a ton of future directions I might take this, or that you can feel free to explore! Some ideas below -
+I mostly built Hyper402 on the long flight from Seattle to Buenos Aires, so the scope is limited. There are a ton of future directions I might take this, or that you can feel free to explore! Some ideas below -
 
 ### production deployment
 
-1. **Production HyperEVM facilitator** - Deploy HyperPay as a production-grade facilitator on HyperEVM mainnet with:
+1. **production HyperEVM facilitator** - Deploy Hyper402 as a production-grade facilitator on HyperEVM mainnet with:
    - fleet of CDP Server Wallets for high throughput and redundancy while minimizing error rate
    - intelligent load balancing across multiple facilitator instances
    - monitoring, alerting, and analytics dashboard
    - rate limiting and abuse prevention
    - uptime SLA guarantees
 
-2. **monetization features** - Turn HyperPay into a sustainable business:
+2. **monetization features** - Turn Hyper402 into a sustainable business:
    - optional facilitator fees (e.g., 0.1% of transaction value, or flat rate per settled txn)
    - premium tier with higher throughput guarantees
    - analytics and insights for API providers
@@ -288,7 +298,7 @@ I mostly did this on the long flight from Seattle to Buenos Aires, so the scope 
    - dashboard showing revenue + accumulated yield
    - one-click withdrawal from looping positions
 
-5. **HyperCore support** - extend HyperPay beyond HyperEVM:
+5. **HyperCore support** - extend Hyper402 beyond HyperEVM:
    - implement x402 facilitator for HyperCore (Hyperliquid L1)
    - enable cross-chain payments (pay on HyperCore, settle on HyperEVM)
    - unified facilitator handling both chains with configurability
@@ -304,13 +314,116 @@ I mostly did this on the long flight from Seattle to Buenos Aires, so the scope 
 
 ### community & governance
 
-7. **open governance** - decentralize HyperPay:
+7. **open governance** - decentralize Hyper402:
     - DAO for facilitator parameters (fees, supported tokens)
     - community-run facilitator nodes
     - revenue sharing with node operators
     - grants for ecosystem development
 
 the core contribution here — a working x402 facilitator for HyperEVM — is a foundation that can grow into critical infrastructure for a rich API economy settling on Hyperliquid & HyperEVM 🔥
+
+## learnings & key insights
+
+### x402 hardcoded network limitations (client AND server)
+
+**insight:** the entire x402 stack has hardcoded network enums:
+- **server side:** `x402-express` middleware rejects custom networks
+- **client side:** `x402-fetch` also validates networks via zod schema
+- both only allow: Base, Base Sepolia, Solana, Solana Devnet, afaict
+- custom EVM chains like HyperEVM testnet are rejected at BOTH ends
+
+**so what:** to support HyperEVM, I had to:
+1. implement x402 protocol flow manually in the demo server (bypass middleware)
+2. tell client it's "base-sepolia" to pass x402-fetch validation (yeah, hacky)
+3. client creates EIP-712 signature with **actual chain ID 998** from wallet
+4. server translates network back to "hyperevm-testnet" before calling facilitator
+5. facilitator verifies signature against HyperEVM and settles there
+
+**the hack (multi-stage deception):** 
+```javascript
+// step 1: server's 402 response (lies to client)
+network: "base-sepolia",  // fake network for client validation
+asset: "0x2B3...USDC",    // real HyperEVM USDC address
+extra: { actualChainId: 998 }
+
+// step 2: client signs with wallet configured for chain 998
+// EIP-712 signature contains real chainId, so it's valid for HyperEVM
+
+// step 3: server translates before calling facilitator
+paymentPayload.network = "hyperevm-testnet"; // fix the lie
+
+// step 4: facilitator verifies against actual HyperEVM
+```
+
+**why this works:** the EIP-712 signature includes the real chain ID (998) from the user's wallet client - the "network" string is just routing metadata. the cryptographic proof is chain-specific so even though we tell x402-fetch it's "base-sepolia", the actual signature proves payment on HyperEVM
+
+**alternatives considered:**
+
+1. **implement x402 protocol manually in client** (~50-100 lines):
+   - detect 402, create EIP-712 signature, construct X-PAYMENT header
+   - full control, no network restrictions
+   - **rejected:** too time-consuming for hackathon; wanted to reuse battle-tested libraries
+
+2. **fork x402-fetch and remove validation**:
+   - clone x402-fetch repo, strip out network enum validation
+   - publish as `@hyper402/x402-fetch`
+   - **rejected:** adds deployment complexity; hack is simpler for demo
+
+3. **use raw fetch without any x402 libraries**:
+   - manually construct all headers and handle payment flow
+   - maximum flexibility
+   - **rejected:** reinventing the wheel; defeats the purpose of showing x402 protocol adoption
+
+**why the hack was right choice:**
+- reuses proven x402 client libraries
+- demonstrates x402 protocol compatibility
+- fast implementation (hours, not days)
+- highlights the actual limitation clearly
+- the deception is purely in metadata; the cryptographic proof remains valid
+
+for production, option 1 or 2 would be the path forward, but for proving the concept and identifying ecosystem gaps, the workaround was optimal
+
+**solution ideas for x402 ecosystem:** x402 packages need architectural changes, which I think the x402 v2 spec is tackling:
+- making network validation extensible (plugin system for custom chains)
+- adding "custom EVM" network type with runtime chain ID configuration
+- accepting any network string and delegating validation to the facilitator
+- or removing client-side network validation entirely (trust the facilitator)
+
+### middleware vs direct integration tradeoff
+
+**the question:** if API providers can't use simple middleware b/c of network restrictions, does that mean they must self-host the Hyper402 facilitator (risking easy integration)?
+
+**the answer:** not necessarily - here are some options:
+
+1. **deploy Hyper402 as a hosted facilitator service** (like CDP does for its facilitator):
+   - run facilitator at some hosted endpoint
+   - API providers call your hosted facilitator directly
+   - they implement custom middleware (like we did in demo/server)
+   - still only ~20 lines of code (not as clean as 3-line middleware, but manageable)
+
+2. **create custom `x402-hyperevm` middleware package**:
+   - fork x402-express
+   - add HyperEVM support
+   - publish as `@hyper402/x402-express`
+   - now sellers can use: `import { paymentMiddleware } from "@hyper402/x402-express"`
+
+3. **contribute to x402 core repo**:
+   - submit PR to x402 repo to add custom chain support
+   - if accepted, future versions would support any EVM chain
+   - this would benefit the entire ecosystem - but expect x402's in-fight v2 effort should address
+
+**recommendation:** see if option 3 works, then maybe option 2 - for now option 1 is immediately available
+
+### testnet faucet challenges
+
+**challenge:** getting testnet HYPE was surprisingly difficult during the hackathon; most faucets had strict requirements:
+- Quicknode faucet: Requires 0.05 HYPE on Hyperliquid mainnet
+- Chainstack faucet: Requires 0.08 ETH on Ethereum mainnet + some mainnet activity history
+- these anti-abuse measures are understandable but create barriers for legitimate hackathon projects
+
+**solution:** used gas.zip and eventually Quicknode faucet
+
+**insight:** hackathons and testnets need dedicated builder faucets with different access patterns (e.g. Discord verification, GitHub account age, etc) rather than mainnet balance requirements
 
 ## license
 

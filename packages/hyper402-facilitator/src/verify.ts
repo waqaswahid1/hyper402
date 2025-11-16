@@ -1,5 +1,5 @@
 /**
- * HyperPay Verify - Payment verification logic
+ * Hyper402 Verify - Payment verification logic
  * Based on x402 exact-evm scheme
  */
 

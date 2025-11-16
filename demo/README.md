@@ -1,18 +1,18 @@
-# HyperPay demo
+# Hyper402 demo
 
-To showcase HyperPay's x402 facilitator on HyperEVM, I've also included this End-to-end demo
+to showcase Hyper402's x402 facilitator on HyperEVM, I've also included this end-to-end demo
 
 ## what this demo shows
 
-this demo illustrates a complete payment flow using HyperPay:
+this demo illustrates a complete payment flow using Hyper402:
 
 1. **web client** - CDP Embedded Wallet with email/SMS/Google/X authentication
 2. **demo API** - simple Express server with x402 payment protection
-3. **HyperPay facilitator** - verifies and settles payments on HyperEVM testnet
+3. **Hyper402 facilitator** - verifies and settles payments on HyperEVM testnet
 
 ## running the Demo
 
-**pre-reqs:** HyperPay facilitator must be running (see main README on how to do this)
+**pre-reqs:** Hyper402 facilitator must be running (see main README on how to do this)
 
 ### 1. start demo API
 
@@ -53,10 +53,10 @@ Client → API: GET /motivate
 API → Client: 402 Payment Required (0.01 USDC on HyperEVM)
 Client: Creates EIP-3009 authorization, signs with CDP wallet
 Client → API: GET /motivate + X-PAYMENT header
-API → HyperPay: POST /verify
-HyperPay: Validates signature, checks balance
-API → HyperPay: POST /settle
-HyperPay: Calls transferWithAuthorization via CDP Server Wallet
+API → Hyper402: POST /verify
+Hyper402: Validates signature, checks balance
+API → Hyper402: POST /settle
+Hyper402: Calls transferWithAuthorization via CDP Server Wallet
          Pays gas in HYPE, transfers USDC
 API → Client: 200 OK + quote + transaction details
 ```
@@ -76,5 +76,5 @@ API → Client: 200 OK + quote + transaction details
 - `GET /motivate` - simple motivational quote (requires 0.01 USDC on HyperEVM testnet)
 - `GET /fortune` - fortune-telling (requires 0.05 USDC on HyperEVM testnet)
 
-both x402-enabled API examples accept payment on HyperEVM testnet via the HyperPay facilitator
+both x402-enabled API examples accept payment on HyperEVM testnet via the Hyper402 facilitator
 

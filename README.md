@@ -14,11 +14,11 @@ it enables API providers to accept USDC payments on HyperEVM using the same dead
 
 ### features
 
-✅ **EIP-3009 compatible** - gasless payments using `transferWithAuthorization`  
-✅ **CDP Server Wallets** - secure key management and automatic nonce & retry handling 
-✅ **standard x402 protocol** - works with existing x402 client libraries  
-✅ **production-ready** - full verification and settlement logic  
-✅ **open source** - template for adding x402 to any EVM chain  
+- **EIP-3009 compatible** - gasless payments using `transferWithAuthorization`  
+- **CDP Server Wallets** - secure key management and automatic nonce & retry handling 
+- **standard x402 protocol** - works with existing x402 client libraries  
+- **production-ready** - full verification and settlement logic  
+- **open source** - template for adding x402 to any EVM chain  
 
 ## high-level architecture
 

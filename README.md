@@ -82,7 +82,7 @@ hyperpay/
 
 1. Node.js v18+
 2. CDP API Key from https://portal.cdp.coinbase.com/
-3. CDP Server Wallet with HYPE on HyperEVM testnet to pay gas fees
+3. CDP Server Wallet with HYPE on HyperEVM testnet to pay gas fees (I used gas.zip and Quicknode Faucet)
 
 ### 1. install dependencies
 
@@ -230,7 +230,7 @@ app.use(paymentMiddleware(
 
 ## deployment
 
-I haven't deployed this to production yet, but here's how you would do it. Right now I'm focused on getting testnet HYPE so I can test this out locally, and don't want to deploy before doing that - but maybe you can!
+I haven't deployed this to production yet, but here's how you would do it. Right now I'm focused on testing locally, and don't want to deploy before doing that - but maybe you can!
 
 ### facilitator
 
@@ -257,22 +257,16 @@ don't forget to allowlist your domain in CDP Portal under Embedded Wallets! The 
 
 I mostly did this on the long flight from Seattle to Buenos Aires, so the scope is limited. There are a ton of future directions I might take this, or that you can feel free to explore! Some ideas below -
 
-### immediate next steps
-
-1. **🔥 find some f*cking testnet HYPE!** - The biggest blocker during the hackathon was actually getting testnet HYPE to test the facilitator. All public faucets required mainnet holdings to prevent abuse, and some even required the receiving wallet to have a mainnet history (not realistic for hackathon projects). For future development, we need either:
-   - partnership with HyperLiquid for testnet token distribution
-   - dedicated testnet faucet for builders
-
 ### production deployment
 
-2. **Production HyperEVM facilitator** - Deploy HyperPay as a production-grade facilitator on HyperEVM mainnet with:
+1. **Production HyperEVM facilitator** - Deploy HyperPay as a production-grade facilitator on HyperEVM mainnet with:
    - fleet of CDP Server Wallets for high throughput and redundancy while minimizing error rate
    - intelligent load balancing across multiple facilitator instances
    - monitoring, alerting, and analytics dashboard
    - rate limiting and abuse prevention
    - uptime SLA guarantees
 
-3. **monetization features** - Turn HyperPay into a sustainable business:
+2. **monetization features** - Turn HyperPay into a sustainable business:
    - optional facilitator fees (e.g., 0.1% of transaction value, or flat rate per settled txn)
    - premium tier with higher throughput guarantees
    - analytics and insights for API providers
@@ -280,21 +274,21 @@ I mostly did this on the long flight from Seattle to Buenos Aires, so the scope 
 
 ### advanced features
 
-4. **multi-token support** - accept and disburse in any token:
+3. **multi-token support** - accept and disburse in any token:
    - native token swaps via HyperEVM DEXes
    - users pay in any HyperEVM-supported token they have (USDC, HYPE, wBTC, etc)
    - API providers receive in their preferred token
    - automatic conversion handled by facilitator; neither party has to think about the swap in between
    - route optimization for best swap rates
 
-5. **Looping Collective integration** 🔄 - yield on API revenue:
+4. **Looping Collective integration** 🔄 - yield on API revenue:
    - enable API providers to auto-deposit a % of earnings into a liquid looping strategy like LHYPE
    - earn yield on revenue while maintaining liquidity
    - configurable allocation (e.g. 50% liquid, 50% looped or whatever)
    - dashboard showing revenue + accumulated yield
    - one-click withdrawal from looping positions
 
-6. **HyperCore support** - extend HyperPay beyond HyperEVM:
+5. **HyperCore support** - extend HyperPay beyond HyperEVM:
    - implement x402 facilitator for HyperCore (Hyperliquid L1)
    - enable cross-chain payments (pay on HyperCore, settle on HyperEVM)
    - unified facilitator handling both chains with configurability
@@ -302,7 +296,7 @@ I mostly did this on the long flight from Seattle to Buenos Aires, so the scope 
 
 ### ecosystem expansion
 
-7. **discovery layer** - HyperEVM API marketplace:
+6. **discovery layer** - HyperEVM API marketplace:
    - catalog of x402-enabled APIs on HyperEVM
    - searchable by category, price, rating
    - one-click integration for developers
@@ -310,7 +304,7 @@ I mostly did this on the long flight from Seattle to Buenos Aires, so the scope 
 
 ### community & governance
 
-8. **open governance** - decentralize HyperPay:
+7. **open governance** - decentralize HyperPay:
     - DAO for facilitator parameters (fees, supported tokens)
     - community-run facilitator nodes
     - revenue sharing with node operators

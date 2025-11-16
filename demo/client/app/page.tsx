@@ -446,27 +446,23 @@ export default function Home() {
 
           {quote && (
             <div className="response-section">
-              <h3>API response:</h3>
+              <h3>response:</h3>
               <div className="quote-display">"{quote}"</div>
               
-              {paymentInfo && (
-                <div className="payment-info">
-                  <p><strong>payment status:</strong> {paymentInfo.success ? "✅ Successful" : "❌ Failed"}</p>
-                  {paymentInfo.transaction && (
-                    <>
-                      <p><strong>transaction:</strong></p>
-                      <div className="tx-hash">
-                        <a 
-                          href={`https://testnet.purrsec.com/tx/${paymentInfo.transaction}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          {paymentInfo.transaction}
-                        </a>
-                      </div>
-                    </>
-                  )}
-                  <p><strong>network:</strong> {paymentInfo.network}</p>
+              {paymentInfo && paymentInfo.transaction && (
+                <div style={{ marginTop: "16px", textAlign: "center" }}>
+                  <a 
+                    href={`https://testnet.purrsec.com/tx/${paymentInfo.transaction}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="button button-secondary"
+                    style={{ display: "inline-block", textDecoration: "none" }}
+                  >
+                    view transaction on HyperEVM explorer →
+                  </a>
+                  <p style={{ fontSize: "12px", color: "#666", marginTop: "8px", fontFamily: "monospace" }}>
+                    {paymentInfo.transaction.slice(0, 10)}...{paymentInfo.transaction.slice(-8)}
+                  </p>
                 </div>
               )}
             </div>

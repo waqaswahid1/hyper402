@@ -8,17 +8,19 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3003;
 
-// Parse JSON bodies
+// parse JSON bodies
 app.use(express.json());
 
-// Enable CORS
-app.use(cors());
+// enable CORS with custom headers
+app.use(cors({
+  exposedHeaders: ['X-PAYMENT-RESPONSE']
+}));
 
-// Your wallet address that will receive payments
+// your wallet address that will receive payments
 const RECEIVER_WALLET = process.env.RECEIVER_WALLET || "0xYourWalletAddress";
 const FACILITATOR_URL = process.env.HYPER402_FACILITATOR_URL || "http://localhost:3002";
 
-// USDC configuration for HyperEVM testnet
+// USDC config for HyperEVM testnet
 const USDC_CONFIG = {
   address: "0x2B3370eE501B4a559b57D449569354196457D8Ab",
   decimals: 6,
@@ -28,7 +30,7 @@ const USDC_CONFIG = {
   }
 };
 
-// Payment configuration for each endpoint
+// payment config for each endpoint
 const PAYMENT_CONFIG = {
   "/motivate": {
     amount: "10000", // 0.01 USDC
@@ -45,16 +47,16 @@ async function x402Middleware(req, res, next) {
   const config = PAYMENT_CONFIG[req.path];
   
   if (!config) {
-    return next(); // Not a protected endpoint
+    return next(); // not an x402-enabled endpoint
   }
 
   const paymentHeader = req.headers['x-payment'];
   
-  // No payment header - return 402
+  // if no payment header, return 402
   if (!paymentHeader) {
     const paymentRequirement = {
       scheme: "exact",
-      network: "hyperevm-testnet", // Use real network since we have custom client
+      network: "hyperevm-testnet", // could configure mainnet if u want
       maxAmountRequired: config.amount,
       asset: USDC_CONFIG.address,
       payTo: RECEIVER_WALLET,
@@ -73,7 +75,7 @@ async function x402Middleware(req, res, next) {
     });
   }
 
-  // Payment provided - verify and settle
+  // payment provided, verify & settle
   try {
     const paymentPayload = JSON.parse(Buffer.from(paymentHeader, 'base64').toString());
     
@@ -93,7 +95,7 @@ async function x402Middleware(req, res, next) {
       }
     };
 
-    // Verify with facilitator
+    // verify with facilitator
     const verifyResponse = await fetch(`${FACILITATOR_URL}/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -113,7 +115,7 @@ async function x402Middleware(req, res, next) {
       });
     }
 
-    // Settle with facilitator
+    // settle with facilitator
     const settleResponse = await fetch(`${FACILITATOR_URL}/settle`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -133,7 +135,7 @@ async function x402Middleware(req, res, next) {
       });
     }
 
-    // Add payment response header
+    // add payment response header
     const paymentResponse = Buffer.from(JSON.stringify({
       success: true,
       transaction: settleResult.transaction,
@@ -143,7 +145,7 @@ async function x402Middleware(req, res, next) {
 
     res.setHeader('X-PAYMENT-RESPONSE', paymentResponse);
 
-    // Payment successful - continue to endpoint
+    // payment successful, continue to endpoint
     next();
 
   } catch (error) {
@@ -152,13 +154,14 @@ async function x402Middleware(req, res, next) {
   }
 }
 
-// Apply custom x402 middleware
+// apply custom x402 middleware
 app.use(x402Middleware);
 
-// Protected endpoints
+// my demo x402-enabled endpoints, Motivate & Fortune
 app.get("/motivate", (req, res) => {
   res.json({
-    quote: "Work hard, have fun, make history.",
+    quote: "Nothing is softer or more flexible than water, yet nothing can resist it.",
+    author: "Lao Tzu",
     timestamp: new Date().toISOString(),
     paid: true,
     network: "hyperevm-testnet"
@@ -166,16 +169,8 @@ app.get("/motivate", (req, res) => {
 });
 
 app.get("/fortune", (req, res) => {
-  const fortunes = [
-    "Great success awaits you in the crypto markets.",
-    "Your next deploy will be bug-free.",
-    "A generous airdrop is in your future.",
-    "Your code will compile on the first try today.",
-    "You will discover an innovative use case for liquid looping.",
-  ];
-  
   res.json({
-    fortune: fortunes[Math.floor(Math.random() * fortunes.length)],
+    fortune: "A rising wave carries your destiny forward. Stay fluid, and fortune will flow your way.",
     luckyNumber: Math.floor(Math.random() * 100),
     timestamp: new Date().toISOString(),
     paid: true,
@@ -212,13 +207,13 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Balance endpoint - Get USDC balance on HyperEVM testnet via RPC
+// balance endpoint, get USDC balance on HyperEVM testnet via RPC
 app.get("/balance/:address", async (req, res) => {
   try {
     const { address } = req.params;
     
     if (!address) {
-      return res.status(400).json({ error: "Address is required" });
+      return res.status(400).json({ error: "address is required" });
     }
 
     // Create public client for HyperEVM testnet
@@ -235,7 +230,7 @@ app.get("/balance/:address", async (req, res) => {
       transport: http("https://rpc.hyperliquid-testnet.xyz/evm"),
     });
 
-    // Read USDC balance
+    // read USDC balance
     const usdcAddress = "0x2B3370eE501B4a559b57D449569354196457D8Ab";
     const balance = await publicClient.readContract({
       address: usdcAddress,
@@ -250,7 +245,7 @@ app.get("/balance/:address", async (req, res) => {
       args: [address],
     });
 
-    // Convert to decimal (USDC has 6 decimals)
+    // convert to decimal b/c USDC has 6 decimals
     const balanceInUsdc = Number(balance) / 1000000;
 
     res.json({ 

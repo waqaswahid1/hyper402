@@ -121,7 +121,7 @@ npm run dev:facilitator
 you should see:
 ```
 ✅ Facilitator wallet initialized: 0x...
-⚠️  Make sure this wallet has HYPE for gas!
+⚠️ Make sure this wallet has HYPE for gas!
 🚀 Hyper402 Facilitator running on http://localhost:3002
 ```
 

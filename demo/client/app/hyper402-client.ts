@@ -146,12 +146,17 @@ export async function makePaidRequest(
   }
 
   // 7. Parse payment response
-  const paymentResponseHeader = paidResponse.headers.get('X-PAYMENT-RESPONSE');
+  const paymentResponseHeader = paidResponse.headers.get('X-PAYMENT-RESPONSE') || 
+                                 paidResponse.headers.get('x-payment-response');
   let paymentInfo: PaymentResponse | undefined;
+  
+  console.log("[Hyper402 Client] Response headers:", Array.from(paidResponse.headers.entries()));
+  console.log("[Hyper402 Client] Payment response header:", paymentResponseHeader);
   
   if (paymentResponseHeader) {
     try {
       paymentInfo = JSON.parse(atob(paymentResponseHeader));
+      console.log("[Hyper402 Client] Parsed payment info:", paymentInfo);
     } catch (e) {
       console.error("Failed to parse payment response:", e);
     }

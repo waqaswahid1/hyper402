@@ -1,6 +1,6 @@
 # @hyper402/facilitator
 
-x402 payment facilitator implementation for HyperEVM testnet, created as part of Hyper402 project for the HyperEVM Hackathon at Devconnect Buenos Aires (Nov'25).
+x402 payment facilitator implementation for HyperEVM testnet, created as part of Hyper402 project for the HyperEVM Hackathon at Devconnect Buenos Aires (Nov'25)
 
 ## installation
 
@@ -23,45 +23,64 @@ endpoints:
 - `POST /settle` - settle verified payment
 - `GET /supported` - get supported schemes
 
-### with x402-express
+### with custom middleware (required for HyperEVM)
 
+**Note:** standard x402-express doesn't support custom chains due to hardcoded network validation, you need custom middleware - see `demo/server/index.js` for the full implementation (~50 lines)
+
+example integration:
 ```javascript
-import { paymentMiddleware } from "x402-express";
+// Custom middleware that calls Hyper402 facilitator
 import { facilitator } from "@hyper402/facilitator";
 
-app.use(paymentMiddleware(
-  receiverWallet,
-  {
-    "GET /protected": {
-      price: "$0.01",
-      network: "hyperevm-testnet"
-    }
-  },
-  facilitator
-));
+// 1. Return 402 with payment requirements
+// 2. Call facilitator.url + '/verify' 
+// 3. Call facilitator.url + '/settle'
+// 4. Add X-PAYMENT-RESPONSE header
+// 5. Continue to endpoint
 ```
 
-## configuration
+**future:** once `@hyper402/express` middleware package is published, integration will be 3 lines (see roadmap in the main README)
 
-requires CDP API credentials in `.env` since facilitator uses CDP Server Wallet:
+## config
+
+requires CDP API credentials and Wallet Secret in `.env`:
 
 ```env
 CDP_API_KEY_ID=your-key-id
 CDP_API_KEY_SECRET=your-key-secret
+CDP_WALLET_SECRET=your-wallet-secret
+PORT=3002
 ```
+
+the facilitator creates a CDP Server Wallet named "hyperpay-facilitator" which must be funded with HYPE for gas
 
 ## how it works
 
 1. **verification** - validates EIP-3009 signatures & payment details
-2. **settlement** - executes `transferWithAuthorization` via CDP Server Wallet
+   - checks EIP-712 signature recovery
+   - verifies amounts, recipients, deadlines
+   - confirms user has sufficient USDC balance
+
+2. **settlement** - executes `transferWithAuthorization` on HyperEVM
+   - gets CDP Server Wallet account
+   - converts to viem account via `toAccount()` (this works on any EVM chain)
+   - sends transaction to USDC contract
+   - waits for confirmation
+
 3. **gas sponsorship** - facilitator pays gas in HYPE
+   - user pays 0 gas (gasless UX)
+   - API provider pays 0 gas
+   - facilitator's CDP wallet pays ~0.0001 HYPE per transaction
 
 ## network details
 
 - **chain id:** 998
 - **RPC:** https://rpc.hyperliquid-testnet.xyz/evm
-- **USDC:** 0x2B3370eE501B4a559b57D449569354196457D8Ab
+- **USDC contract:** 0x2B3370eE501B4a559b57D449569354196457D8Ab
+- **EIP-712 name:** "USDC" (note: different from "USD Coin" on other chains!)
+- **EIP-712 version:** "2"
 - **gas token:** HYPE
+- **block explorer:** https://testnet.purrsec.com/
 
 ## requirements
 

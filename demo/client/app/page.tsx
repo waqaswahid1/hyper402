@@ -17,21 +17,25 @@ import { makePaidRequest } from "./hyper402-client";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3003";
 
-// HyperEVM testnet config
-const hyperEvmTestnet = {
-  id: 998,
-  name: "HyperEVM Testnet",
-  nativeCurrency: { name: "HYPE", symbol: "HYPE", decimals: 18 },
-  rpcUrls: {
-    default: { http: ["https://rpc.hyperliquid-testnet.xyz/evm"] },
-    public: { http: ["https://rpc.hyperliquid-testnet.xyz/evm"] },
-  },
-  blockExplorers: {
-    default: { 
-      name: "PurrSec Explorer", 
-      url: "https://testnet.purrsec.com" 
-    },
-  },
+type ChainConfig = {
+  network: string;
+  name: string;
+  chainId: number;
+  rpcUrl: string;
+  blockExplorer?: string;
+  faucetUrl?: string;
+  nativeCurrency: {
+    name: string;
+    symbol: string;
+    decimals: number;
+  };
+  token: {
+    address: string;
+    name: string;
+    symbol: string;
+    decimals: number;
+    version: string;
+  };
 };
 
 interface ApiResponse {
@@ -45,6 +49,7 @@ interface PaymentResponse {
   transaction?: string;
   network?: string;
   payer?: string;
+  blockExplorer?: string;
 }
 
 export default function Home() {
@@ -69,21 +74,51 @@ export default function Home() {
   const [flowId, setFlowId] = useState("");
   const [authType, setAuthType] = useState<"email" | "sms">("email");
   const [copied, setCopied] = useState(false);
+  const [chainConfigs, setChainConfigs] = useState<ChainConfig[]>([]);
+  const [selectedNetwork, setSelectedNetwork] = useState<string>("");
+  const [chainLoading, setChainLoading] = useState(true);
+  const [chainError, setChainError] = useState<string>("");
 
   const address = currentUser?.evmAccounts?.[0];
+  const selectedChain = chainConfigs.find((chain) => chain.network === selectedNetwork) || null;
+
+  useEffect(() => {
+    async function loadChains() {
+      try {
+        setChainLoading(true);
+        const response = await fetch(`${API_URL}/chains`);
+        if (!response.ok) {
+          throw new Error("failed to load chain configs");
+        }
+        const data = await response.json();
+        setChainConfigs(data.chains || []);
+        if (data.defaultNetwork && (data.chains || []).some((chain: ChainConfig) => chain.network === data.defaultNetwork)) {
+          setSelectedNetwork(data.defaultNetwork);
+        } else if ((data.chains || []).length > 0) {
+          setSelectedNetwork(data.chains[0].network);
+        }
+      } catch (err) {
+        setChainError(err instanceof Error ? err.message : "failed to load chains");
+      } finally {
+        setChainLoading(false);
+      }
+    }
+
+    loadChains();
+  }, []);
 
   // fetch balance when connected
   useEffect(() => {
-    if (address) {
+    if (address && selectedChain) {
       fetchBalance();
     }
-  }, [address]);
+  }, [address, selectedChain]);
 
   const fetchBalance = async () => {
-    if (!address) return;
+    if (!address || !selectedChain) return;
     
     try {
-      const response = await fetch(`${API_URL}/balance/${address}`);
+      const response = await fetch(`${API_URL}/balance/${address}?network=${selectedChain.network}`);
       
       if (!response.ok) {
         throw new Error("failed to fetch balance");
@@ -91,7 +126,7 @@ export default function Home() {
       
       const data = await response.json();
       setBalance(data.balance);
-      console.log(`balance updated: ${data.balance} USDC for ${address}`);
+      console.log(`balance updated: ${data.balance} ${selectedChain.token.symbol} for ${address} on ${selectedChain.network}`);
     } catch (err) {
       console.error("error fetching balance:", err);
     }
@@ -183,6 +218,10 @@ export default function Home() {
   // call the x402-enabled API endpoint
   const handleCallApi = async (endpoint: string) => {
     if (!address || !currentUser) return;
+    if (!selectedChain) {
+      setError("select a network before calling the API");
+      return;
+    }
     
     setLoading(true);
     setError("");
@@ -197,14 +236,28 @@ export default function Home() {
       }
       
       const viemAccount = await toViemAccount(evmAddress as `0x${string}`);
+      const viemChain = {
+        id: selectedChain.chainId,
+        name: selectedChain.name,
+        nativeCurrency: selectedChain.nativeCurrency,
+        rpcUrls: {
+          default: { http: [selectedChain.rpcUrl] },
+          public: { http: [selectedChain.rpcUrl] },
+        },
+        blockExplorers: selectedChain.blockExplorer
+          ? { default: { name: `${selectedChain.name} Explorer`, url: selectedChain.blockExplorer } }
+          : undefined,
+      };
       const walletClient = createWalletClient({
         account: viemAccount,
-        chain: hyperEvmTestnet,
-        transport: http(),
+        chain: viemChain,
+        transport: http(selectedChain.rpcUrl),
       }).extend(publicActions);
       
       // Make paid request using custom Hyper402 client
-      const result = await makePaidRequest(`${API_URL}${endpoint}`, walletClient, evmAddress);
+      const result = await makePaidRequest(`${API_URL}${endpoint}`, walletClient, evmAddress, {
+        network: selectedChain.network,
+      });
       
       setQuote(result.data.quote || result.data.fortune || "Success!");
       if (result.paymentInfo) {
@@ -221,11 +274,76 @@ export default function Home() {
     }
   };
 
+  const tokenSymbol = selectedChain?.token.symbol || "token";
+  const explorerUrl = paymentInfo?.transaction
+    ? (() => {
+        const base = paymentInfo.blockExplorer || selectedChain?.blockExplorer;
+        if (!base) return null;
+        return `${base.replace(/\/$/, "")}/tx/${paymentInfo.transaction}`;
+      })()
+    : null;
+
   return (
     <div className="container">
       <div className="header">
         <h1>Hyper402 demo</h1>
-        <p>showcasing the first x402 facilitator for HyperEVM</p>
+        <p>multi-chain x402 facilitator on any EIP-3009 EVM</p>
+      </div>
+
+      <div className="wallet-section">
+        <h2 style={{ marginBottom: "16px", fontSize: "20px" }}>choose network</h2>
+        {chainLoading ? (
+          <p style={{ fontSize: "14px", color: "#666" }}>loading networks…</p>
+        ) : chainConfigs.length === 0 ? (
+          <div className="info-box">
+            no networks configured. set <code>CHAIN_CONFIGS</code> on the server & facilitator.
+          </div>
+        ) : (
+          <>
+            <select
+              value={selectedNetwork}
+              onChange={(e) => setSelectedNetwork(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "12px",
+                borderRadius: "8px",
+                border: "1px solid #ddd",
+                marginBottom: "12px",
+              }}
+            >
+              {chainConfigs.map((chain) => (
+                <option key={chain.network} value={chain.network}>
+                  {chain.name} ({chain.token.symbol})
+                </option>
+              ))}
+            </select>
+            {selectedChain && (
+              <div style={{ fontSize: "14px", color: "#555", lineHeight: 1.6 }}>
+                <p>
+                  chain id: <strong>{selectedChain.chainId}</strong> · token:{" "}
+                  <strong>{selectedChain.token.symbol}</strong>
+                </p>
+                <p style={{ wordBreak: "break-all" }}>
+                  token contract: <code>{selectedChain.token.address}</code>
+                </p>
+                {selectedChain.faucetUrl && (
+                  <button
+                    className="button button-secondary"
+                    onClick={() => window.open(selectedChain.faucetUrl, "_blank")}
+                    style={{ marginTop: "12px" }}
+                  >
+                    open faucet →
+                  </button>
+                )}
+              </div>
+            )}
+          </>
+        )}
+        {chainError && (
+          <div className="error" style={{ marginTop: "12px" }}>
+            <strong>network error:</strong> {chainError}
+          </div>
+        )}
       </div>
 
       <div className="wallet-section">
@@ -381,8 +499,10 @@ export default function Home() {
                 {copied ? "copied ✓" : "copy"}
               </button>
             </div>
-            <p>USDC balance:</p>
-            <div className="balance">{balance} USDC</div>
+            <p>{tokenSymbol} balance:</p>
+            <div className="balance">
+              {balance} {tokenSymbol}
+            </div>
             <button 
               className="button button-secondary" 
               onClick={() => signOut()}
@@ -397,20 +517,23 @@ export default function Home() {
       {isSignedIn && (
         <>
           <div className="action-section">
-            <h2 style={{ marginBottom: "16px", fontSize: "20px" }}>get testnet USDC</h2>
+            <h2 style={{ marginBottom: "16px", fontSize: "20px" }}>
+              get {tokenSymbol} on {selectedChain?.name || "your testnet"}
+            </h2>
             
             <button
               className="button button-primary"
-              onClick={() => window.open("https://faucet.circle.com/", "_blank")}
+              onClick={() => selectedChain?.faucetUrl && window.open(selectedChain.faucetUrl, "_blank")}
+              disabled={!selectedChain?.faucetUrl}
               style={{ marginBottom: "8px" }}
             >
-              open Circle faucet →
+              {selectedChain?.faucetUrl ? "open faucet →" : "add faucet url via CHAIN_CONFIGS"}
             </button>
             <p style={{ fontSize: "13px", color: "#666", lineHeight: "1.5" }}>
               1. copy your address from section 1 above<br />
-              2. click button to open Circle's faucet<br />
-              3. select "HyperEVM Testnet" and paste address<br />
-              4. claim USDC & return here
+              2. open the faucet for {selectedChain?.name || "the selected network"}<br />
+              3. request {tokenSymbol} and wait for confirmation<br />
+              4. return here and refresh balance
             </p>
           </div>
 
@@ -422,18 +545,18 @@ export default function Home() {
               disabled={loading || parseFloat(balance) < 0.01}
               style={{ marginBottom: "12px" }}
             >
-              {loading ? "processing..." : "motivational quote (0.01 USDC)"}
+              {loading ? "processing..." : `motivational quote (0.01 ${tokenSymbol})`}
             </button>
             <button
               className="button button-primary"
               onClick={() => handleCallApi('/fortune')}
               disabled={loading || parseFloat(balance) < 0.05}
             >
-              {loading ? "processing..." : "fortune telling (0.05 USDC)"}
+              {loading ? "processing..." : `fortune telling (0.05 ${tokenSymbol})`}
             </button>
             {parseFloat(balance) < 0.01 && (
               <div className="info-box">
-                you need at least 0.01 USDC to call these APIs - use the faucet above
+                you need at least 0.01 {tokenSymbol} to call these APIs - use the faucet above
               </div>
             )}
           </div>
@@ -451,15 +574,21 @@ export default function Home() {
               
               {paymentInfo && paymentInfo.transaction && (
                 <div style={{ marginTop: "16px", textAlign: "center" }}>
-                  <a 
-                    href={`https://testnet.purrsec.com/tx/${paymentInfo.transaction}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="button button-secondary"
-                    style={{ display: "inline-block", textDecoration: "none" }}
-                  >
-                    view transaction on HyperEVM explorer →
-                  </a>
+                  {explorerUrl ? (
+                    <a 
+                      href={explorerUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="button button-secondary"
+                      style={{ display: "inline-block", textDecoration: "none" }}
+                    >
+                      view transaction on explorer →
+                    </a>
+                  ) : (
+                    <div className="info-box">
+                      explorer link unavailable - tx hash below
+                    </div>
+                  )}
                   <p style={{ fontSize: "12px", color: "#666", marginTop: "8px", fontFamily: "monospace" }}>
                     {paymentInfo.transaction.slice(0, 10)}...{paymentInfo.transaction.slice(-8)}
                   </p>
@@ -473,16 +602,16 @@ export default function Home() {
       <div className="steps" style={{ marginTop: "32px" }}>
         <h3>about this demo:</h3>
         <p style={{ fontSize: "14px", lineHeight: "1.6", color: "#666" }}>
-          this demo showcases <strong>Hyper402</strong> - the first x402 payment facilitator for HyperEVM
+          this demo showcases <strong>Hyper402</strong> - a configurable x402 payment facilitator for any EVM chain with EIP-3009 USDC
         </p>
         <ul style={{ fontSize: "14px", lineHeight: "1.8", color: "#666", marginTop: "12px", paddingLeft: "20px" }}>
           <li>sign in to get a CDP Embedded Wallet</li>
-          <li>get testnet USDC from Circle's faucet</li>
-          <li>call x402-enabled APIs with automatic payment on HyperEVM</li>
-          <li>no gas fees - Hyper402 facilitator sponsors gas in HYPE</li>
+          <li>pick your preferred EVM testnet & faucet the matching token</li>
+          <li>call x402-enabled APIs with automatic payment settlement</li>
+          <li>no gas fees - Hyper402 facilitator sponsors gas via server wallets</li>
         </ul>
         <p style={{ fontSize: "13px", marginTop: "16px", color: "#888", textAlign: "center" }}>
-          built for the HyperEVM Hackathon at Devconnect Buenos Aires, Nov'25
+          originally built for the HyperEVM Hackathon at Devconnect Buenos Aires, now extended for any chain
           <br />
           <a href="https://github.com/jnix2007/hyper402" target="_blank" rel="noopener noreferrer" style={{ color: "#0052ff", marginTop: "4px", display: "inline-block" }}>GitHub →</a>
         </p>

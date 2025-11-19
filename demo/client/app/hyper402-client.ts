@@ -19,6 +19,14 @@ interface PaymentRequirement {
   extra?: {
     name?: string;
     version?: string;
+    tokenName?: string;
+    tokenVersion?: string;
+    tokenDecimals?: number;
+    chainId?: number;
+    rpcUrl?: string;
+    blockExplorer?: string;
+    faucetUrl?: string;
+    nativeCurrency?: string;
   };
 }
 
@@ -36,10 +44,19 @@ export async function makePaidRequest(
   url: string,
   walletClient: WalletClient,
   evmAccount: string,
+  options?: {
+    network?: string;
+  },
 ): Promise<{ data: any; paymentInfo?: PaymentResponse }> {
   
   // 1. Initial request
-  const initialResponse = await fetch(url);
+  const initialHeaders: Record<string, string> = {};
+  if (options?.network) {
+    initialHeaders["X-CHAIN-NETWORK"] = options.network;
+  }
+  const initialResponse = await fetch(url, {
+    headers: initialHeaders,
+  });
   
   // If not 402, return the response
   if (initialResponse.status !== 402) {
@@ -60,17 +77,28 @@ export async function makePaidRequest(
   const validAfter = 0;
   const validBefore = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
 
+  const payerAddress =
+    (walletClient.account?.address as `0x${string}` | undefined) ??
+    (evmAccount as `0x${string}`);
+  if (!payerAddress) {
+    throw new Error("wallet account address not available");
+  }
+
+  const verifyingContract = requirement.asset as `0x${string}`;
+  const recipient = requirement.payTo as `0x${string}`;
+
+  const domainChainId = requirement.extra?.chainId ?? walletClient.chain?.id ?? 0;
   const domain = {
-    name: requirement.extra?.name || "USDC", // Actual name from HyperEVM testnet USDC contract
-    version: requirement.extra?.version || "2",
-    chainId: 998,
-    verifyingContract: requirement.asset,
+    name: requirement.extra?.tokenName || requirement.extra?.name || "USDC",
+    version: requirement.extra?.tokenVersion || requirement.extra?.version || "2",
+    chainId: domainChainId,
+    verifyingContract,
   };
 
   console.log("[Hyper402 Client] EIP-712 Domain:", domain);
   console.log("[Hyper402 Client] Message:", {
-    from: walletClient.account.address,
-    to: requirement.payTo,
+    from: payerAddress,
+    to: recipient,
     value: requirement.maxAmountRequired,
     validAfter,
     validBefore,
@@ -78,8 +106,10 @@ export async function makePaidRequest(
   });
 
   // 4. Sign with EIP-712 using CDP (avoids BigInt serialization issues)
+  const signerAccount = evmAccount as `0x${string}`;
+
   const result = await signEvmTypedData({
-    evmAccount,
+    evmAccount: signerAccount,
     typedData: {
       domain,
       types: {
@@ -100,8 +130,8 @@ export async function makePaidRequest(
       },
       primaryType: "TransferWithAuthorization",
       message: {
-        from: walletClient.account.address,
-        to: requirement.payTo,
+        from: payerAddress,
+        to: recipient,
         value: requirement.maxAmountRequired,
         validAfter: validAfter.toString(),
         validBefore: validBefore.toString(),
@@ -118,12 +148,12 @@ export async function makePaidRequest(
   const paymentPayload = {
     x402Version: 1,
     scheme: "exact",
-    network: "hyperevm-testnet", // Use real network!
+    network: requirement.network,
     payload: {
       signature,
       authorization: {
-        from: walletClient.account.address,
-        to: requirement.payTo,
+        from: payerAddress,
+        to: recipient,
         value: requirement.maxAmountRequired,
         validAfter: validAfter.toString(),
         validBefore: validBefore.toString(),
@@ -135,10 +165,15 @@ export async function makePaidRequest(
   const paymentHeader = btoa(JSON.stringify(paymentPayload));
 
   // 6. Retry request with payment
+  const paidHeaders: Record<string, string> = {
+    'X-PAYMENT': paymentHeader,
+  };
+  if (options?.network) {
+    paidHeaders["X-CHAIN-NETWORK"] = options.network;
+  }
+
   const paidResponse = await fetch(url, {
-    headers: {
-      'X-PAYMENT': paymentHeader,
-    },
+    headers: paidHeaders,
   });
 
   if (!paidResponse.ok) {

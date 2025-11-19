@@ -1,6 +1,6 @@
 /**
  * Hyper402 Facilitator Server
- * Provides /verify and /settle endpoints for x402 payments on HyperEVM testnet
+ * Provides /verify and /settle endpoints for x402 payments across configurable EVM chains
  */
 
 import express from "express";
@@ -9,7 +9,7 @@ import dotenv from "dotenv";
 import { CdpClient } from "@coinbase/cdp-sdk";
 import { verify } from "./verify.js";
 import { settle } from "./settle.js";
-import { USDC_CONFIG } from "./config.js";
+import { getChainConfigs } from "./config.js";
 import type { VerifyRequest, SettleRequest } from "./types.js";
 
 dotenv.config();
@@ -20,6 +20,8 @@ const PORT = process.env.PORT || 3002;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+const chainConfigs = getChainConfigs();
 
 // Initialize CDP Client
 const cdp = new CdpClient();
@@ -38,7 +40,7 @@ async function initializeFacilitator() {
     
     facilitatorAddress = account.address;
     console.log(`✅ Facilitator wallet initialized: ${facilitatorAddress}`);
-    console.log(`⚠️  Make sure this wallet has HYPE for gas on HyperEVM testnet!`);
+    console.log(`⚠️  Ensure this wallet has gas (${chainConfigs.map((c) => c.nativeCurrency.symbol).join(", ")}) on your configured networks!`);
   } catch (error) {
     console.error("Failed to initialize facilitator wallet:", error);
     throw error;
@@ -50,17 +52,20 @@ app.get("/", (req, res) => {
   res.json({
     name: "Hyper402 Facilitator",
     version: "1.0.0",
-    description: "x402 payment facilitator for HyperEVM testnet",
-    network: {
-      name: "HyperEVM Testnet",
-      chainId: 998,
-      currency: "HYPE",
-    },
-    supported: {
+    description: "x402 payment facilitator for any EVM chain with EIP-3009 tokens",
+    networks: chainConfigs.map((config) => ({
+      network: config.network,
+      chainId: config.chainId,
+      name: config.name,
+      currency: config.nativeCurrency.symbol,
+      token: `${config.token.symbol} (${config.token.address})`,
+      blockExplorer: config.blockExplorer,
+    })),
+    supported: chainConfigs.map((config) => ({
       scheme: "exact",
-      network: "hyperevm-testnet",
-      asset: "USDC (0x2B3370eE501B4a559b57D449569354196457D8Ab)",
-    },
+      network: config.network,
+      asset: `${config.token.symbol} (${config.token.address})`,
+    })),
     endpoints: {
       "POST /verify": "Verify a payment payload",
       "POST /settle": "Settle a verified payment",
@@ -84,11 +89,11 @@ app.get("/health", (req, res) => {
 app.get("/supported", (req, res) => {
   res.json({
     kinds: [
-      {
+      ...chainConfigs.map((config) => ({
         x402Version: 1,
         scheme: "exact",
-        network: "hyperevm-testnet",
-      },
+        network: config.network,
+      })),
     ],
   });
 });
@@ -136,6 +141,7 @@ app.post("/settle", async (req, res) => {
     }
 
     console.log(`[Hyper402] Settling payment from ${(request.paymentPayload.payload as any).authorization.from}`);
+    console.log(`[Hyper402] Network: ${request.paymentPayload.network}`);
 
     if (!facilitatorAddress) {
       throw new Error("Facilitator wallet not initialized");
@@ -150,7 +156,11 @@ app.post("/settle", async (req, res) => {
 
     console.log(`[Hyper402] Settlement result: ${result.success ? "SUCCESS ✅" : `FAILED ❌ (${result.errorReason})`}`);
     if (result.transaction) {
-      console.log(`[Hyper402] Transaction: https://testnet.purrsec.com/tx/${result.transaction}`);
+      const networkDetails = chainConfigs.find((config) => config.network === request.paymentPayload.network);
+      const explorer = networkDetails?.blockExplorer
+        ? `${networkDetails.blockExplorer.replace(/\/$/, "")}/tx/${result.transaction}`
+        : undefined;
+      console.log(`[Hyper402] Transaction: ${explorer ?? result.transaction}`);
     }
 
     res.json(result);
@@ -160,7 +170,7 @@ app.post("/settle", async (req, res) => {
       success: false,
       errorReason: "settlement_failed",
       error: error instanceof Error ? error.message : "Unknown error",
-      network: "hyperevm-testnet",
+      network: (req.body as SettleRequest | undefined)?.paymentPayload?.network ?? "unknown",
     });
   }
 });
@@ -179,11 +189,16 @@ async function start() {
       console.log(`   • POST /verify        - Verify payment`);
       console.log(`   • POST /settle        - Settle payment`);
       console.log(`\n🔧 Configuration:`);
-      console.log(`   • Network: HyperEVM Testnet (Chain ID 998)`);
+      chainConfigs.forEach((config) => {
+        console.log(`   • Network: ${config.name} (${config.network}) - Chain ID ${config.chainId}`);
+        console.log(`     Token: ${config.token.symbol} (${config.token.address})`);
+        if (config.blockExplorer) {
+          console.log(`     Explorer: ${config.blockExplorer}`);
+        }
+      });
       console.log(`   • Scheme: exact (EIP-3009)`);
-      console.log(`   • Token: USDC (${USDC_CONFIG.address})`);
       console.log(`   • Facilitator: ${facilitatorAddress}`);
-      console.log(`\n💡 Make sure facilitator wallet has HYPE for gas!`);
+      console.log(`\n💡 Make sure facilitator wallet has enough native currency for gas!`);
     });
   } catch (error) {
     console.error("Failed to start facilitator:", error);

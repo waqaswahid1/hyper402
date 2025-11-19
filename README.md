@@ -1,8 +1,9 @@
-# Hyper402 - x402 Facilitator for HyperEVM
+# Hyper402 - x402 Facilitator for HyperEVM (and friends)
 
 ![Hyper402](./hyper402.png)
 
-**Hyper402 is the first x402 payment facilitator for HyperEVM**, enabling API services and content providers to monetize their offerings and receive onchain payments on HyperEVM
+**Hyper402 is the first x402 payment facilitator for HyperEVM**, enabling API services and content providers to monetize their offerings and receive onchain payments on HyperEVM.  
+The facilitator, demo API, and Next.js client now share a single `CHAIN_CONFIGS` runtime so you can point the entire stack at *any* EIP-3009-compatible EVM chain (Base Sepolia, Base mainnet, Polygon Amoy, custom rollups, etc.) without touching the code. Polygon Amoy is the out-of-the-box default.
 
 **built for the HyperEVM Hackathon hosted by Looping Collective & StakingRewards at Devconnect Buenos Aires, November 2025**
 
@@ -19,6 +20,38 @@ it enables API providers to accept USDC payments on HyperEVM using the same dead
 - **standard x402 protocol** - works with existing x402 client libraries  
 - **production-ready** - full verification and settlement logic  
 - **open source** - template for adding x402 to any EVM chain  
+- **multi-chain ready** - set `CHAIN_CONFIGS` once and the facilitator, demo API, and client all expose your networks (users pick their preferred chain at runtime)
+
+### configurable chains (`CHAIN_CONFIGS`)
+
+Define one or more chains via an environment variable shared across:
+
+- `packages/hyper402-facilitator` (verification + settlement)  
+- `demo/server` (x402 middleware + balance endpoint)  
+- `demo/client` (Next.js UI that lets users choose a chain and faucet tokens)
+
+```json
+[
+  {
+    "network": "base-sepolia",
+    "chainId": 84532,
+    "name": "Base Sepolia",
+    "rpcUrl": "https://sepolia.base.org",
+    "blockExplorer": "https://sepolia.basescan.org",
+    "faucetUrl": "https://faucet.circle.com",
+    "nativeCurrency": { "name": "ETH", "symbol": "ETH", "decimals": 18 },
+    "token": {
+      "address": "0xYourUSDCAddress",
+      "name": "USDC",
+      "symbol": "USDC",
+      "decimals": 6,
+      "version": "2"
+    }
+  }
+]
+```
+
+Expose this JSON as `CHAIN_CONFIGS` (or rely on the built-in Polygon Amoy → HyperEVM fallback chain list). The demo client fetches `/chains` from the API to display the list, so end users can pick any configured network without redeploying.
 
 ## high-level architecture
 

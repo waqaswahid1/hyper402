@@ -1,6 +1,6 @@
 # @hyper402/facilitator
 
-x402 payment facilitator implementation for HyperEVM testnet, created as part of Hyper402 project for the HyperEVM Hackathon at Devconnect Buenos Aires (Nov'25)
+x402 payment facilitator implementation capable of targeting any EVM chain with an EIP-3009 token (defaults to HyperEVM testnet), created as part of Hyper402 project for the HyperEVM Hackathon at Devconnect Buenos Aires (Nov'25)
 
 ## installation
 
@@ -23,7 +23,7 @@ endpoints:
 - `POST /settle` - settle verified payment
 - `GET /supported` - get supported schemes
 
-### with custom middleware (required for HyperEVM)
+### with custom middleware
 
 **Note:** standard x402-express doesn't support custom chains due to hardcoded network validation, you need custom middleware - see `demo/server/index.js` for the full implementation (~50 lines)
 
@@ -52,7 +52,48 @@ CDP_WALLET_SECRET=your-wallet-secret
 PORT=3002
 ```
 
-the facilitator creates a CDP Server Wallet named "hyperpay-facilitator" which must be funded with HYPE for gas
+### multi-chain support
+
+Declare one or more chains by exporting `CHAIN_CONFIGS` as a JSON array. Omit it to stay on the HyperEVM defaults.
+
+```env
+CHAIN_CONFIGS='[
+  {
+    "network": "hyperevm-testnet",
+    "chainId": 998,
+    "name": "HyperEVM Testnet",
+    "rpcUrl": "https://rpc.hyperliquid-testnet.xyz/evm",
+    "nativeCurrency": { "name": "HYPE", "symbol": "HYPE", "decimals": 18 },
+    "token": {
+      "address": "0x2B3370eE501B4a559b57D449569354196457D8Ab",
+      "name": "USDC",
+      "symbol": "USDC",
+      "decimals": 6,
+      "version": "2"
+    },
+    "blockExplorer": "https://testnet.purrsec.com"
+  },
+  {
+    "network": "base-sepolia",
+    "chainId": 84532,
+    "name": "Base Sepolia",
+    "rpcUrl": "https://sepolia.base.org",
+    "nativeCurrency": { "name": "ETH", "symbol": "ETH", "decimals": 18 },
+    "token": {
+      "address": "0x1234567890abcdef1234567890abcdef12345678",
+      "name": "USDC",
+      "symbol": "USDC",
+      "decimals": 6,
+      "version": "2"
+    },
+    "blockExplorer": "https://sepolia.basescan.org"
+  }
+]'
+```
+
+Each entry declares the x402 `network` slug your clients will request. The facilitator reuses the same CDP Server Wallet across all configured chains.
+
+the facilitator creates a CDP Server Wallet named "hyperpay-facilitator" which must be funded with native gas on whichever networks you support
 
 ## how it works
 
@@ -61,18 +102,18 @@ the facilitator creates a CDP Server Wallet named "hyperpay-facilitator" which m
    - verifies amounts, recipients, deadlines
    - confirms user has sufficient USDC balance
 
-2. **settlement** - executes `transferWithAuthorization` on HyperEVM
+2. **settlement** - executes `transferWithAuthorization` on the selected EVM chain
    - gets CDP Server Wallet account
    - converts to viem account via `toAccount()` (this works on any EVM chain)
    - sends transaction to USDC contract
    - waits for confirmation
 
-3. **gas sponsorship** - facilitator pays gas in HYPE
+3. **gas sponsorship** - facilitator pays gas in the chain's native token
    - user pays 0 gas (gasless UX)
    - API provider pays 0 gas
-   - facilitator's CDP wallet pays ~0.0001 HYPE per transaction
+   - facilitator's CDP wallet pays a small amount of native gas per transaction
 
-## network details
+## defaults
 
 - **chain id:** 998
 - **RPC:** https://rpc.hyperliquid-testnet.xyz/evm
@@ -84,7 +125,7 @@ the facilitator creates a CDP Server Wallet named "hyperpay-facilitator" which m
 
 ## requirements
 
-the facilitator uses a CDP Server Wallet; that wallet must have HYPE tokens to cover gas fees (this way neither the user/agent on the client side, nor the API provider on the server side, need to worry about gas)
+the facilitator uses a CDP Server Wallet; that wallet must have native gas on each configured chain (this way neither the user/agent on the client side, nor the API provider on the server side, need to worry about gas)
 
 ## license
 

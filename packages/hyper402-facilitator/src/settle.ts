@@ -7,7 +7,7 @@ import { encodeFunctionData, createWalletClient, http, createPublicClient, type 
 import { toAccount } from "viem/accounts";
 import type { PaymentPayload, PaymentRequirements, SettleResponse, ExactEvmPayload } from "./types.js";
 import { verify } from "./verify.js";
-import { USDC_CONFIG, usdcABI, HYPEREVM_TESTNET_CONFIG } from "./config.js";
+import { usdcABI, getChainConfig } from "./config.js";
 
 /**
  * Settle a payment by executing transferWithAuthorization via CDP Server Wallet
@@ -38,6 +38,11 @@ export async function settle(
     console.log(`[Hyper402] Amount: ${payload.authorization.value} (${paymentRequirements.maxAmountRequired} required)`);
     console.log(`[Hyper402] To: ${payload.authorization.to}`);
 
+    const chainConfig = getChainConfig(paymentPayload.network);
+    if (!chainConfig) {
+      throw new Error(`Unsupported network: ${paymentPayload.network}`);
+    }
+
     // Encode transferWithAuthorization call data
     const callData = encodeFunctionData({
       abi: usdcABI,
@@ -58,34 +63,34 @@ export async function settle(
       name: "hyperpay-facilitator", // Using original name to reuse funded wallet
     });
     
-    const hyperEvmChain = {
-      id: HYPEREVM_TESTNET_CONFIG.chainId,
-      name: HYPEREVM_TESTNET_CONFIG.name,
-      nativeCurrency: HYPEREVM_TESTNET_CONFIG.nativeCurrency,
+    const viemChain = {
+      id: chainConfig.chainId,
+      name: chainConfig.name,
+      nativeCurrency: chainConfig.nativeCurrency,
       rpcUrls: {
-        default: { http: [HYPEREVM_TESTNET_CONFIG.rpcUrl] },
-        public: { http: [HYPEREVM_TESTNET_CONFIG.rpcUrl] },
+        default: { http: [chainConfig.rpcUrl] },
+        public: { http: [chainConfig.rpcUrl] },
       },
     };
 
     // Create viem wallet client using CDP account (via toAccount)
     const walletClient = createWalletClient({
       account: toAccount(cdpAccount),
-      chain: hyperEvmChain,
-      transport: http(HYPEREVM_TESTNET_CONFIG.rpcUrl),
+      chain: viemChain,
+      transport: http(chainConfig.rpcUrl),
     });
 
     // Send transaction using viem (works on any EVM chain!)
     const txHash = await walletClient.sendTransaction({
-      to: USDC_CONFIG.address,
+      to: chainConfig.token.address,
       data: callData,
       value: 0n,
     });
 
     // Wait for confirmation
     const publicClient = createPublicClient({
-      chain: hyperEvmChain,
-      transport: http(HYPEREVM_TESTNET_CONFIG.rpcUrl),
+      chain: viemChain,
+      transport: http(chainConfig.rpcUrl),
     });
 
     const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });

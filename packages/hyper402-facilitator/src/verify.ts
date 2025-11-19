@@ -5,7 +5,7 @@
 
 import { createPublicClient, http, getAddress, type Address, type Hex } from "viem";
 import type { PaymentPayload, PaymentRequirements, VerifyResponse, ExactEvmPayload } from "./types.js";
-import { HYPEREVM_TESTNET_CONFIG, USDC_CONFIG, authorizationTypes, usdcABI } from "./config.js";
+import { getChainConfig, authorizationTypes, usdcABI } from "./config.js";
 
 const SCHEME = "exact";
 
@@ -28,8 +28,8 @@ export async function verify(
       };
     }
 
-    // 2. Verify network
-    if (payload.network !== "hyperevm-testnet") {
+    // 2. Resolve requested network
+    if (payload.network !== paymentRequirements.network) {
       return {
         isValid: false,
         invalidReason: "invalid_network",
@@ -37,18 +37,40 @@ export async function verify(
       };
     }
 
-    // Create public client for HyperEVM testnet
+    const chainConfig = getChainConfig(payload.network);
+    if (!chainConfig) {
+      return {
+        isValid: false,
+        invalidReason: "invalid_network",
+        payer: exactEvmPayload.authorization.from,
+      };
+    }
+
+    if (
+      paymentRequirements.asset &&
+      ![
+        chainConfig.token.address.toLowerCase(),
+        chainConfig.token.symbol.toLowerCase(),
+      ].some((identifier) => paymentRequirements.asset.toLowerCase().includes(identifier))
+    ) {
+      return {
+        isValid: false,
+        invalidReason: "invalid_asset",
+        payer: exactEvmPayload.authorization.from,
+      };
+    }
+
     const client = createPublicClient({
       chain: {
-        id: HYPEREVM_TESTNET_CONFIG.chainId,
-        name: HYPEREVM_TESTNET_CONFIG.name,
-        nativeCurrency: HYPEREVM_TESTNET_CONFIG.nativeCurrency,
+        id: chainConfig.chainId,
+        name: chainConfig.name,
+        nativeCurrency: chainConfig.nativeCurrency,
         rpcUrls: {
-          default: { http: [HYPEREVM_TESTNET_CONFIG.rpcUrl] },
-          public: { http: [HYPEREVM_TESTNET_CONFIG.rpcUrl] },
+          default: { http: [chainConfig.rpcUrl] },
+          public: { http: [chainConfig.rpcUrl] },
         },
       },
-      transport: http(HYPEREVM_TESTNET_CONFIG.rpcUrl),
+      transport: http(chainConfig.rpcUrl),
     });
 
     // 3. Verify EIP-712 signature
@@ -56,10 +78,10 @@ export async function verify(
       types: authorizationTypes,
       primaryType: "TransferWithAuthorization" as const,
       domain: {
-        name: USDC_CONFIG.name,
-        version: USDC_CONFIG.version,
-        chainId: HYPEREVM_TESTNET_CONFIG.chainId,
-        verifyingContract: USDC_CONFIG.address,
+        name: chainConfig.token.name,
+        version: chainConfig.token.version,
+        chainId: chainConfig.chainId,
+        verifyingContract: chainConfig.token.address,
       },
       message: {
         from: exactEvmPayload.authorization.from as Address,
@@ -115,7 +137,7 @@ export async function verify(
 
     // 7. Check balance
     const balance = await client.readContract({
-      address: USDC_CONFIG.address,
+      address: chainConfig.token.address,
       abi: usdcABI,
       functionName: "balanceOf",
       args: [exactEvmPayload.authorization.from as Address],
